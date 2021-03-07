@@ -55,6 +55,6 @@ class User extends Authenticatable implements JWTSubject
 
     public function thread(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
-        return $this->hasMany(User::class);
+        return $this->hasMany(Thread::class);
     }
 }

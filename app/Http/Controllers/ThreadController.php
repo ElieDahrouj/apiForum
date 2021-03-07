@@ -185,13 +185,98 @@ class ThreadController extends Controller
     /**
      * Update the specified resource in storage.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\Thread  $thread
-     * @return \Illuminate\Http\Response
+     * @param \Illuminate\Http\Request $request
+     * @param \App\Models\Thread $thread
+     * @param $id
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, Thread $thread)
+    public function update(Request $request, Thread $thread, $id): \Illuminate\Http\JsonResponse
     {
+        $validator = Validator::make($request->all(), [
+            'title' => 'required|max:255',
+            'body' => 'required',
+            'channel_id' => 'required|integer',
+        ]);
 
+        if ($validator->fails()) {
+            return response()->json(["errors" => $validator->errors()], 422);
+        }
+
+        $authorizeThread = Thread::where('id',$id)->get();
+        if (count($authorizeThread)!=0 && $authorizeThread[0]['user_id'] === auth()->user()->id )
+        {
+            Thread::where('id', $id)
+            ->where('user_id',auth()->user()->id)
+            ->update([
+                "title" => $request->title,
+                "slug" => Str::slug($request->title),
+                "body" => $request->body,
+                "channel_id" => $request->channel_id
+            ]);
+
+            $updatedThread = Thread::with('user')
+                ->with('replie.user')
+                ->with('replie.thread')
+                ->with('replie.thread.user')
+                ->with('channel')
+                ->where('id',$id)
+                ->get();
+
+            $structOneThreadUpdated = Fractal::create()->item($updatedThread[0])
+            ->transformWith(function($updatedThread) {
+
+                $structRepliesFromUpdatedThread = Fractal::create()->collection($updatedThread['replie'])
+                    ->transformWith(function($updatedThread) {
+                        return [
+                            'id' => $updatedThread['id'],
+                            'created_at' => $updatedThread['created_at'],
+                            'updated_at' => $updatedThread['updated_at'],
+                            'body' => $updatedThread['body'],
+                            'user' => (object)[
+                                "data" =>[
+                                    "name" => $updatedThread['user']['name'],
+                                    "email" => $updatedThread['user']['email'],
+                                ]
+                            ],
+                            "thread" => (object)[
+                                "data" =>[
+                                    "id" => $updatedThread['thread']['id'],
+                                    "title" => $updatedThread['thread']['title'],
+                                    "slug" => $updatedThread['thread']['slug'],
+                                    "body" => $updatedThread['thread']['body'],
+                                    "user" => $updatedThread['thread']['user'],
+                                ]
+                            ]
+                        ];
+                    })
+                    ->toArray();
+
+                return [
+                    'data' => (object)[
+                        'id' => $updatedThread['id'],
+                        'title' => $updatedThread['title'],
+                        'slug' => $updatedThread['slug'],
+                        'body' => $updatedThread['body'],
+                        'user' =>$updatedThread['user'],
+                    ],
+                    'channel' => (object)[
+                        "data" => $updatedThread['channel']
+                    ],
+                    'replies'=> $structRepliesFromUpdatedThread
+                ];
+            })
+            ->toArray();
+
+            return response()->json($structOneThreadUpdated['data']);
+        }
+        elseif (count($authorizeThread) !== 0 && $authorizeThread[0]['user_id'] != auth()->user()->id )
+        {
+            return response()->json(['errors'=>(object)[]],403);
+        }
+        else
+        {
+            return response()->json(['errors'=>(object)[]],404);
+        }
     }
 
     /**
