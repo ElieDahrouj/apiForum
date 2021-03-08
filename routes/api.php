@@ -26,3 +26,4 @@ Route::delete('/threads/{id}', [ThreadController::class, 'destroy'])->name('dest
 Route::put('/threads/{id}', [ThreadController::class, 'update'])->name('updateThread');
 Route::post('/threads/{id}/replies', [ReplieController::class, 'store'])->name('addRepliesToThread');
 Route::get('/threads/{id}/replies/{reply}', [ReplieController::class, 'show'])->name('showRepliesToThread');
+Route::delete('/threads/{id}/replies/{reply}', [ReplieController::class, 'destroy'])->name('destroyRepliesToThread');

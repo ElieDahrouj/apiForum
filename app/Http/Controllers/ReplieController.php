@@ -170,11 +170,35 @@ class ReplieController extends Controller
     /**
      * Remove the specified resource from storage.
      *
-     * @param  \App\Models\Replie  $replie
-     * @return \Illuminate\Http\Response
+     * @param \App\Models\Replie $replie
+     * @param $id
+     * @param $reply
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function destroy(Replie $replie)
+    public function destroy(Replie $replie,$id,$reply): \Illuminate\Http\JsonResponse
     {
-        //
+        $getOneRepliesToDestroy =  Replie::with('user')
+        ->with('thread')
+        ->with('thread.user')
+        ->where([
+            ['thread_id', '=', $id],
+            ['id', '=', $reply],
+        ])
+        ->get();
+
+        if (count($getOneRepliesToDestroy) === 0){
+            return response()->json(['errors'=>(object)[]],404);
+        }
+
+        if ($getOneRepliesToDestroy[0]['user_id'] != auth()->user()->id){
+            return response()->json(['errors'=>(object)[]],403);
+        }
+
+        Replie::where([
+            ['thread_id', '=', $id],
+            ['id', '=', $reply],
+        ])->delete();
+        return response()->json([],204);
+
     }
 }
