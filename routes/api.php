@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ChannelController;
 use App\Http\Controllers\ThreadController;
+use App\Http\Controllers\ReplieController;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -23,3 +24,4 @@ Route::post('/threads', [ThreadController::class, 'store'])->name('addThread');
 Route::get('/threads/{id}', [ThreadController::class, 'show'])->name('showThread');
 Route::delete('/threads/{id}', [ThreadController::class, 'destroy'])->name('destroyThread');
 Route::put('/threads/{id}', [ThreadController::class, 'update'])->name('updateThread');
+Route::post('/threads/{id}/replies', [ReplieController::class, 'store'])->name('addRepliesToThread');
