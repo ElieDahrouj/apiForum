@@ -17,6 +17,41 @@ class ReplieController extends Controller
     {
         $this->middleware('auth:api');
     }
+
+    /**
+     * @param $dataCollection
+     */
+    public function displayDataReplies($dataCollection): array
+    {
+        return Fractal::create()->item($dataCollection[0])
+        ->transformWith(function($getRepliesCreated) {
+            return [
+                'id' => $getRepliesCreated['id'],
+                'created_at' => $getRepliesCreated['created_at'],
+                'updated_at' => $getRepliesCreated['updated_at'],
+                'body' => $getRepliesCreated['body'],
+                'user' => (object)[
+                    "data" => (object)[
+                        "name" => $getRepliesCreated['user']['name'],
+                        "email" => $getRepliesCreated['user']['email']
+                    ]
+                ],
+                "thread" => (object)[
+                    "data" =>(object)[
+                        'id' => $getRepliesCreated['thread']['id'],
+                        'title' => $getRepliesCreated['thread']['title'],
+                        'slug' => $getRepliesCreated['thread']['slug'],
+                        'body' => $getRepliesCreated['thread']['body'],
+                        'user' => (object)[
+                            "name" => $getRepliesCreated['thread']['user']['name'],
+                            "email" => $getRepliesCreated['thread']['user']['email']
+                        ],
+                    ]
+                ]
+            ];
+        })
+        ->toArray();
+    }
     /**
      * Display a listing of the resource.
      *
@@ -72,47 +107,41 @@ class ReplieController extends Controller
         ->where("id",$insertReplies->id)
         ->get();
 
-         $structReplieToThreads =Fractal::create()->item($getRepliesCreated[0])
-            ->transformWith(function($getRepliesCreated) {
-                return [
-                    'id' => $getRepliesCreated['id'],
-                    'created_at' => $getRepliesCreated['created_at'],
-                    'updated_at' => $getRepliesCreated['updated_at'],
-                    'body' => $getRepliesCreated['body'],
-                    'user' => (object)[
-                        "data" => (object)[
-                            "name" => $getRepliesCreated['user']['name'],
-                            "email" => $getRepliesCreated['user']['email']
-                        ]
-                    ],
-                    "thread" => (object)[
-                        "data" =>(object)[
-                            'id' => $getRepliesCreated['thread']['id'],
-                            'title' => $getRepliesCreated['thread']['title'],
-                            'slug' => $getRepliesCreated['thread']['slug'],
-                            'body' => $getRepliesCreated['thread']['body'],
-                            'user' => (object)[
-                                "name" => $getRepliesCreated['thread']['user']['name'],
-                                "email" => $getRepliesCreated['thread']['user']['email']
-                            ],
-                        ]
-                    ]
-                ];
-            })
-            ->toArray();
+        $structRepliesToThreads = $this->displayDataReplies($getRepliesCreated);
 
-        return response()->json(['data'=> $structReplieToThreads['data']],201);
+        return response()->json(['data'=> $structRepliesToThreads['data']],201);
     }
 
     /**
      * Display the specified resource.
      *
-     * @param  \App\Models\Replie  $replie
-     * @return \Illuminate\Http\Response
+     * @param Replie $replie
+     * @param $id
+     * @param $reply
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function show(Replie $replie)
+    public function show(Replie $replie,$id,$reply): \Illuminate\Http\JsonResponse
     {
-        //
+        $getOneReplies =  Replie::with('user')
+            ->with('thread')
+            ->with('thread.user')
+            ->where([
+                ['thread_id', '=', $id],
+                ['id', '=', $reply],
+            ])
+        ->get();
+
+        if (count($getOneReplies) === 0){
+            return response()->json(['errors'=>(object)[]],404);
+        }
+
+        if ($getOneReplies[0]['user_id'] != auth()->user()->id){
+            return response()->json(['errors'=>(object)[]],403);
+        }
+
+        $showOneRepliesToThreads = $this->displayDataReplies($getOneReplies);
+
+        return response()->json(['data'=> $showOneRepliesToThreads['data']]);
     }
 
     /**
