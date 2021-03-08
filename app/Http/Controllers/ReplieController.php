@@ -158,13 +158,53 @@ class ReplieController extends Controller
     /**
      * Update the specified resource in storage.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\Replie  $replie
-     * @return \Illuminate\Http\Response
+     * @param \Illuminate\Http\Request $request
+     * @param \App\Models\Replie $replie
+     * @param $id
+     * @param $reply
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, Replie $replie)
+    public function update(Request $request, Replie $replie, $id, $reply): \Illuminate\Http\JsonResponse
     {
-        //
+        $validator = Validator::make($request->all(), [
+            'body' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(["errors" => $validator->errors()], 422);
+        }
+
+        $getOneReplies = Replie::where([
+            ['thread_id', '=', $id],
+            ['id', '=', $reply],
+        ])->get();
+
+        if (count($getOneReplies) === 0){
+            return response()->json(['errors'=>(object)[]],404);
+        }
+
+        if ($getOneReplies[0]['user_id'] != auth()->user()->id){
+            return response()->json(['errors'=>(object)[]],403);
+        }
+
+        Replie::where([
+            ['thread_id', '=', $id],
+            ['id', '=', $reply],
+            ['user_id', '=', auth()->user()->id],
+        ])->update([
+            "body" => $request->body,
+        ]);
+
+        $getOneRepliesUpdated = Replie::with('user')
+            ->with('thread')
+            ->with('thread.user')
+            ->where([
+                ['thread_id', '=', $id],
+                ['id', '=', $reply],
+            ])->get();
+
+        $showOneRepliesToThreads = $this->displayDataReplies($getOneRepliesUpdated);
+        return response()->json(['data'=> $showOneRepliesToThreads['data']]);
     }
 
     /**
